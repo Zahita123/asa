@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Guru Digital - Standalone App</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase App & Auth Compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <!-- Alpine JS CDN -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    [x-cloak] { display: none !important; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between" x-data="guruApp()" x-init="initApp()" x-cloak>
+
+  <!-- Login Screen -->
+  <div x-show="!isAuthenticated" class="fixed inset-0 bg-slate-900 flex flex-col justify-between p-6 z-50 overflow-hidden">
+    <div class="absolute top-0 right-0 -mr-32 -mt-32 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute bottom-0 left-0 -ml-32 -mb-32 w-96 h-96 bg-teal-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="flex items-center gap-2.5 z-10">
+      <div class="p-2 bg-emerald-500 rounded-2xl shadow-md">
+        <i data-lucide="graduation-cap" class="w-6 h-6 text-slate-900"></i>
+      </div>
+      <span class="font-extrabold text-white text-lg tracking-tight">Portal Guru Standalone</span>
+    </div>
+
+    <div class="max-w-md w-full mx-auto my-auto z-10 text-center space-y-8">
+      <div class="space-y-3">
+        <h1 class="text-4xl font-black text-white tracking-tight leading-tight">
+          Aplikasi Standalone <br> <span class="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">Bapak/Ibu Guru</span>
+        </h1>
+        <p class="text-slate-400 text-sm max-w-sm mx-auto leading-relaxed">
+          File HTML portabel ini berjalan langsung di browser Anda, menyimpan data absensi, materi, dan kuis langsung ke Google Sheets & Drive Anda secara langsung dan aman!
+        </p>
+      </div>
+
+      <div class="bg-slate-800/60 border border-slate-700/50 rounded-3xl p-8 backdrop-blur-md shadow-2xl space-y-6">
+        <button
+          @click="loginWithGoogle()"
+          :disabled="isLoggingIn"
+          class="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 text-slate-800 font-extrabold text-sm py-4 px-6 rounded-2xl shadow-lg border border-slate-200 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <span x-show="isLoggingIn" class="animate-spin mr-2">⏳</span>
+          <span x-show="!isLoggingIn" class="flex items-center gap-2">
+            <svg class="w-5 h-5" viewBox="0 0 48 48">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+            </svg>
+            Masuk dengan Akun Google
+          </span>
+        </button>
+        <p class="text-[11px] text-slate-400 text-center leading-normal max-w-xs mx-auto">
+          *Catatan: Harap jalankan file HTML mandiri ini menggunakan local server (seperti <b>http://localhost</b> atau <b>http://127.0.0.1</b>) agar fitur Google Sign-In Firebase dapat berjalan aman di browser Anda.
+        </p>
+      </div>
+    </div>
+    
+    <div class="text-center text-xs text-slate-600">
+      © 2026 Portal Guru Standalone • Berdiri Sendiri Tanpa Server (Offline-First HTML)
+    </div>
+  </div>
+
+  <!-- Main Standalone Application -->
+  <div x-show="isAuthenticated" class="flex-1 flex flex-col justify-between">
+    
+    <!-- Top Header -->
+    <header class="bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm">
+      <div class="max-w-7xl mx-auto px-6 h-18 flex items-center justify-between py-4">
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-emerald-600 rounded-xl text-white">
+            <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h1 class="font-black text-gray-900 tracking-tight text-sm leading-none">Aplikasi Standalone Guru</h1>
+            <span class="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Sync Langsung Google Sheets</span>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="hidden md:flex items-center gap-1.5">
+          <button @click="activeTab = 'dashboard'" :class="activeTab === 'dashboard' ? 'bg-emerald-50 text-emerald-700' : 'text-gray-500 hover:bg-gray-50'" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+          </button>
+          <button @click="activeTab = 'absensi'" :class="activeTab === 'absensi' ? 'bg-emerald-50 text-emerald-700' : 'text-gray-500 hover:bg-gray-50'" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition">
+            <i data-lucide="users" class="w-4 h-4"></i> Absensi & Siswa
+          </button>
+          <button @click="activeTab = 'materi'" :class="activeTab === 'materi' ? 'bg-emerald-50 text-emerald-700' : 'text-gray-500 hover:bg-gray-50'" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition">
+            <i data-lucide="book-open" class="w-4 h-4"></i> Materi Pembelajaran
+          </button>
+          <button @click="activeTab = 'kuis'" :class="activeTab === 'kuis' ? 'bg-emerald-50 text-emerald-700' : 'text-gray-500 hover:bg-gray-50'" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition">
+            <i data-lucide="award" class="w-4 h-4"></i> Evaluasi Kuis
+          </button>
+        </nav>
+
+        <div class="flex items-center gap-3">
+          <div class="hidden lg:flex flex-col items-end text-xs">
+            <span class="font-bold text-gray-800" x-text="userInfo.name || 'Guru'"></span>
+            <span class="text-[10px] text-gray-400 font-mono" x-text="userInfo.email"></span>
+          </div>
+          <button @click="logout()" class="p-2.5 bg-gray-50 hover:bg-rose-50 text-gray-500 hover:text-rose-600 border border-gray-100 rounded-xl transition">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- App Stage -->
+    <main class="max-w-7xl w-full mx-auto p-6 flex-1">
+      
+      <!-- Loader Banner -->
+      <div x-show="isLoading" class="min-h-[50vh] flex flex-col items-center justify-center space-y-3">
+        <span class="animate-spin text-emerald-600 text-3xl">🌀</span>
+        <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Sinkronisasi Google Sheets Database...</p>
+      </div>
+
+      <div x-show="!isLoading" class="space-y-6">
+        
+        <!-- DASHBOARD TAB -->
+        <div x-show="activeTab === 'dashboard'" class="space-y-6">
+          <div class="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-3xl p-8 text-white shadow-md relative overflow-hidden">
+            <div class="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-y-8 translate-x-8">
+              <i data-lucide="graduation-cap" class="w-72 h-72"></i>
+            </div>
+            <div class="space-y-2 z-10">
+              <span class="bg-white/20 text-white font-bold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full">Standalone Mode</span>
+              <h2 class="text-3xl font-black tracking-tight" x-text="'Selamat Datang, ' + (userInfo.name || 'Bapak/Ibu Guru')"></h2>
+              <p class="text-emerald-100 text-xs max-w-xl">
+                Aplikasi ini berjalan mandiri langsung dari komputer/gawai Anda. Data disimpan aman pada Google Sheets dan Google Drive Anda.
+              </p>
+            </div>
+          </div>
+
+          <!-- Quick Stats Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between">
+              <div>
+                <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Total Murid</span>
+                <p class="text-3xl font-black text-slate-800" x-text="students.length"></p>
+              </div>
+              <div class="p-3 bg-blue-50 text-blue-600 rounded-2xl"><i data-lucide="users" class="w-6 h-6"></i></div>
+            </div>
+            <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between">
+              <div>
+                <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Materi Ajar</span>
+                <p class="text-3xl font-black text-slate-800" x-text="materials.length"></p>
+              </div>
+              <div class="p-3 bg-emerald-50 text-emerald-600 rounded-2xl"><i data-lucide="book-open" class="w-6 h-6"></i></div>
+            </div>
+            <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between">
+              <div>
+                <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Nilai Kumpul</span>
+                <p class="text-3xl font-black text-slate-800" x-text="grades.length"></p>
+              </div>
+              <div class="p-3 bg-amber-50 text-amber-600 rounded-2xl"><i data-lucide="award" class="w-6 h-6"></i></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ABSENSI TAB -->
+        <div x-show="activeTab === 'absensi'" class="space-y-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-xl font-extrabold text-slate-900">Rekap Absensi Siswa</h3>
+              <p class="text-xs text-slate-500">Form pengisian kehadiran harian kelas.</p>
+            </div>
+            <button @click="showAddStudentModal = true" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition">
+              Tambah Siswa Baru
+            </button>
+          </div>
+
+          <!-- Add Student Modal -->
+          <div x-show="showAddStudentModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl space-y-4">
+              <h4 class="font-extrabold text-slate-900 text-base">Tambah Siswa Baru</h4>
+              <div class="space-y-3">
+                <input type="text" x-model="newStudent.nama" placeholder="Nama Lengkap Siswa" class="w-full border rounded-xl px-3 py-2 text-xs focus:border-emerald-500 outline-none" />
+                <input type="text" x-model="newStudent.nis" placeholder="NIS/Nomor Induk" class="w-full border rounded-xl px-3 py-2 text-xs focus:border-emerald-500 outline-none" />
+                <input type="text" x-model="newStudent.kelas" placeholder="Kelas" class="w-full border rounded-xl px-3 py-2 text-xs focus:border-emerald-500 outline-none" />
+              </div>
+              <div class="flex justify-end gap-2 pt-2">
+                <button @click="showAddStudentModal = false" class="border px-4 py-2 rounded-xl text-xs text-slate-500">Batal</button>
+                <button @click="addStudent()" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold">Simpan</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Attendance Grid -->
+          <div class="bg-white border rounded-3xl p-6 shadow-sm">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr class="bg-gray-50 border-b">
+                    <th class="py-3 px-4">Nama Siswa</th>
+                    <th class="py-3 px-4">NIS</th>
+                    <th class="py-3 px-4">Status Kehadiran</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y">
+                  <template x-for="student in students" :key="student.id">
+                    <tr>
+                      <td class="py-3 px-4 font-bold text-slate-900" x-text="student.nama"></td>
+                      <td class="py-3 px-4" x-text="student.nis"></td>
+                      <td class="py-3 px-4">
+                        <select x-model="attendanceTemp[student.id]" class="border rounded-lg px-2 py-1 text-xs">
+                          <option value="Hadir">Hadir</option>
+                          <option value="Sakit">Sakit</option>
+                          <option value="Izin">Izin</option>
+                          <option value="Alpa">Alpa</option>
+                        </select>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <div class="flex justify-end pt-4">
+              <button @click="saveAttendance()" class="bg-emerald-600 text-white text-xs font-bold px-6 py-2.5 rounded-xl">Simpan Kehadiran Hari Ini</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- MATERI TAB -->
+        <div x-show="activeTab === 'materi'" class="space-y-6">
+          <div class="flex justify-between items-center">
+            <div>
+              <h3 class="text-xl font-extrabold text-slate-900">Materi Pembelajaran</h3>
+              <p class="text-xs text-slate-500">Unggah bahan ajar digital Anda.</p>
+            </div>
+            <button @click="showAddMateriForm = !showAddMateriForm" class="bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl" x-text="showAddMateriForm ? 'Tutup Form' : 'Unggah Materi'"></button>
+          </div>
+
+          <!-- Add Form -->
+          <div x-show="showAddMateriForm" class="bg-white border p-6 rounded-3xl shadow-sm space-y-4">
+            <h4 class="font-extrabold text-slate-900">Materi Baru</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="space-y-3">
+                <input type="text" x-model="newMateri.judul" placeholder="Judul Materi" class="w-full border rounded-xl px-3 py-2 text-xs" />
+                <textarea x-model="newMateri.deskripsi" placeholder="Deskripsi Singkar" class="w-full border rounded-xl px-3 py-2 text-xs" rows="3"></textarea>
+              </div>
+              <div class="space-y-3">
+                <select x-model="newMateri.tipe" class="w-full border rounded-xl px-3 py-2 text-xs">
+                  <option value="Link">Tautan (Web Link)</option>
+                  <option value="File">Upload File (Drive)</option>
+                </select>
+                <input type="text" x-model="newMateri.url" placeholder="URL Materi (e.g. YouTube/Web)" class="w-full border rounded-xl px-3 py-2 text-xs" />
+              </div>
+            </div>
+            <button @click="addMateri()" class="bg-emerald-600 text-white text-xs font-bold px-6 py-2 rounded-xl">Simpan Materi</button>
+          </div>
+
+          <!-- Materials Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <template x-for="materi in materials" :key="materi.id">
+              <div class="bg-white border rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+                <div class="space-y-2">
+                  <span class="bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded text-[10px] uppercase" x-text="materi.tipe"></span>
+                  <h4 class="font-extrabold text-slate-800 text-base" x-text="materi.judul"></h4>
+                  <p class="text-xs text-slate-500" x-text="materi.deskripsi"></p>
+                </div>
+                <div class="pt-4 border-t mt-4">
+                  <a :href="materi.url" target="_blank" class="w-full block text-center bg-gray-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 text-xs py-2 rounded-xl border">Buka Materi</a>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- EVALUASI KUIS TAB -->
+        <div x-show="activeTab === 'kuis'" class="space-y-6">
+          <div>
+            <h3 class="text-xl font-extrabold text-slate-900">Evaluasi Pembelajaran (Kuis)</h3>
+            <p class="text-xs text-slate-500">Kerjakan Kuis Terintegrasi Google Sheets langsung dari sini.</p>
+          </div>
+
+          <!-- Simple Student Test Simulator -->
+          <div class="bg-white border rounded-3xl p-6 shadow-sm space-y-4">
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-slate-400 uppercase">Nama Siswa Pengerja</label>
+              <input type="text" x-model="studentQuizName" placeholder="Masukkan nama Anda..." class="w-full border rounded-xl px-4 py-2 text-xs" />
+            </div>
+
+            <!-- Submit Quiz Grades -->
+            <button @click="submitQuizScore()" class="bg-emerald-600 text-white text-xs font-bold px-6 py-2.5 rounded-xl">Simpan Nilai Ke Google Sheets</button>
+          </div>
+
+          <!-- Grades Recaps -->
+          <div class="bg-white border rounded-3xl p-6 shadow-sm">
+            <h4 class="font-extrabold text-slate-800 text-sm mb-4">Rekapitulasi Nilai Kuis</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="bg-gray-50 border-b">
+                    <th class="py-3 px-4">Nama Siswa</th>
+                    <th class="py-3 px-4 text-center">Skor PG (Max 10)</th>
+                    <th class="py-3 px-4 text-center">Skor Penjodohan (Max 5)</th>
+                    <th class="py-3 px-4">Tanggal Kumpul</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="grade in grades" :key="grade.id">
+                    <tr class="border-b">
+                      <td class="py-3 px-4 font-bold text-slate-900" x-text="grade.namaSiswa"></td>
+                      <td class="py-3 px-4 text-center" x-text="grade.skorPilihanGanda"></td>
+                      <td class="py-3 px-4 text-center" x-text="grade.skorPenjodohan"></td>
+                      <td class="py-3 px-4" x-text="grade.tanggal"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script>
+    function guruApp() {
+      return {
+        isAuthenticated: false,
+        isLoggingIn: false,
+        isLoading: false,
+        activeTab: 'dashboard',
+        userInfo: { name: '', email: '' },
+        spreadsheetId: null,
+        token: null,
+
+        // Data arrays
+        students: [],
+        materials: [],
+        grades: [],
+        attendanceTemp: {},
+
+        // Modals / forms
+        showAddStudentModal: false,
+        showAddMateriForm: false,
+        newStudent: { nama: '', nis: '', kelas: '' },
+        newMateri: { judul: '', deskripsi: '', tipe: 'Link', url: '' },
+        studentQuizName: '',
+
+        initApp() {
+          // Initialize Firebase
+          const firebaseConfig = {
+            apiKey: "AIzaSyATuyPecKhYsRR5aOaWG0ny3n4ov3TpJFY",
+            authDomain: "nth-mote-pbndl.firebaseapp.com",
+            projectId: "nth-mote-pbndl",
+            storageBucket: "nth-mote-pbndl.firebasestorage.app",
+            messagingSenderId: "959943476733",
+            appId: "1:959943476733:web:8c28f94b2be19f02e50594"
+          };
+          
+          try {
+            if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+              firebase.initializeApp(firebaseConfig);
+            }
+          } catch (e) {
+            console.error("Firebase init failed:", e);
+          }
+
+          const savedToken = localStorage.getItem('guru_token');
+          if (savedToken) {
+            this.token = savedToken;
+            this.isAuthenticated = true;
+            this.fetchGoogleUserInfo();
+            this.loadSheetsData();
+          }
+
+          // Watch activeTab to re-initialize Lucide Icons
+          this.$watch('activeTab', () => {
+            this.$nextTick(() => {
+              if (window.lucide) {
+                window.lucide.createIcons();
+              }
+            });
+          });
+
+          // Initialize Lucide Icons on load
+          setTimeout(() => {
+            if (window.lucide) {
+              window.lucide.createIcons();
+            }
+          }, 300);
+        },
+
+        loginWithGoogle() {
+          this.isLoggingIn = true;
+          const provider = new firebase.auth.GoogleAuthProvider();
+          provider.addScope('https://www.googleapis.com/auth/spreadsheets');
+          provider.addScope('https://www.googleapis.com/auth/drive.file');
+          provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+          provider.addScope('https://www.googleapis.com/auth/userinfo.email');
+
+          firebase.auth().signInWithPopup(provider)
+            .then((result) => {
+              this.isLoggingIn = false;
+              this.token = result.credential.accessToken;
+              localStorage.setItem('guru_token', this.token);
+              this.isAuthenticated = true;
+              this.userInfo = {
+                name: result.user.displayName,
+                email: result.user.email
+              };
+              this.loadSheetsData();
+            })
+            .catch((error) => {
+              this.isLoggingIn = false;
+              console.error("Login failed:", error);
+              alert("Gagal masuk dengan Google: " + error.message);
+            });
+        },
+
+        async fetchGoogleUserInfo() {
+          try {
+            const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+              headers: { Authorization: `Bearer ${this.token}` }
+            });
+            if (!res.ok) throw new Error("Invalid token");
+            const data = await res.json();
+            this.userInfo = { name: data.name, email: data.email };
+          } catch(err) {
+            console.error(err);
+            this.logout();
+          }
+        },
+
+        async loadSheetsData() {
+          this.isLoading = true;
+          try {
+            // Find or Create Sheet
+            const discoverRes = await fetch('https://www.googleapis.com/drive/v3/files?q=name="Database_Portal_Guru_Digital" and mimeType="application/vnd.google-apps.spreadsheet"', {
+              headers: { Authorization: `Bearer ${this.token}` }
+            });
+            const discoverData = await discoverRes.json();
+            
+            let sheetId = null;
+            if (discoverData.files && discoverData.files.length > 0) {
+              sheetId = discoverData.files[0].id;
+            } else {
+              // Create sheet
+              const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${this.token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  properties: { title: 'Database_Portal_Guru_Digital' },
+                  sheets: [
+                    { properties: { title: 'Siswa' } },
+                    { properties: { title: 'Absensi' } },
+                    { properties: { title: 'Materi' } },
+                    { properties: { title: 'KuisSoal' } },
+                    { properties: { title: 'KuisNilai' } }
+                  ]
+                })
+              });
+              const createData = await createRes.json();
+              sheetId = createData.spreadsheetId;
+
+              // Write headers
+              await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Siswa!A1:D1:append?valueInputOption=USER_ENTERED`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ values: [['ID Siswa', 'Nama Siswa', 'NIS', 'Kelas']] })
+              });
+              await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Absensi!A1:E1:append?valueInputOption=USER_ENTERED`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ values: [['ID Absen', 'Tanggal', 'ID Siswa', 'Nama Siswa', 'Status']] })
+              });
+              await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Materi!A1:F1:append?valueInputOption=USER_ENTERED`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ values: [['ID Materi', 'Judul', 'Deskripsi', 'Tipe', 'URL', 'Tanggal']] })
+              });
+              await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/KuisNilai!A1:F1:append?valueInputOption=USER_ENTERED`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ values: [['ID Nilai', 'Nama Siswa', 'Skor PG', 'Skor Penjodohan', 'Jawaban Esai', 'Tanggal']] })
+              });
+            }
+
+            this.spreadsheetId = sheetId;
+
+            // Fetch Siswa
+            const siswaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheetId}/values/Siswa!A2:D1000`, {
+              headers: { Authorization: `Bearer ${this.token}` }
+            });
+            const siswaData = await siswaRes.json();
+            this.students = (siswaData.values || []).map(row => ({ id: row[0], nama: row[1], nis: row[2], kelas: row[3] }));
+
+            // Fetch Materi
+            const materiRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheetId}/values/Materi!A2:F1000`, {
+              headers: { Authorization: `Bearer ${this.token}` }
+            });
+            const materiData = await materiRes.json();
+            this.materials = (materiData.values || []).map(row => ({ id: row[0], judul: row[1], deskripsi: row[2], tipe: row[3], url: row[4], tanggal: row[5] }));
+
+            // Fetch Grades
+            const gradesRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheetId}/values/KuisNilai!A2:F1000`, {
+              headers: { Authorization: `Bearer ${this.token}` }
+            });
+            const gradesData = await gradesRes.json();
+            this.grades = (gradesData.values || []).map(row => ({ id: row[0], namaSiswa: row[1], skorPilihanGanda: row[2], skorPenjodohan: row[3], jawabanEsai: row[4], tanggal: row[5] }));
+
+            // Init temporary attendance
+            this.students.forEach(s => {
+              this.attendanceTemp[s.id] = 'Hadir';
+            });
+
+          } catch(err) {
+            console.error(err);
+          } finally {
+            this.isLoading = false;
+            setTimeout(() => { if (window.lucide) { window.lucide.createIcons(); } }, 100);
+          }
+        },
+
+        async addStudent() {
+          if (!this.newStudent.nama || !this.newStudent.nis) return;
+          this.isLoading = true;
+          try {
+            const newId = 'siswa_' + Date.now();
+            const rowValues = [[newId, this.newStudent.nama, this.newStudent.nis, this.newStudent.kelas]];
+            
+            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheetId}/values/Siswa!A2:D2:append?valueInputOption=USER_ENTERED`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ values: rowValues })
+            });
+
+            this.students.push({ id: newId, nama: this.newStudent.nama, nis: this.newStudent.nis, kelas: this.newStudent.kelas });
+            this.attendanceTemp[newId] = 'Hadir';
+            this.newStudent = { nama: '', nis: '', kelas: '' };
+            this.showAddStudentModal = false;
+          } catch(err) {
+            console.error(err);
+          } finally {
+            this.isLoading = false;
+            setTimeout(() => { if (window.lucide) { window.lucide.createIcons(); } }, 100);
+          }
+        },
+
+        async saveAttendance() {
+          this.isLoading = true;
+          try {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const rows = Object.entries(this.attendanceTemp).map(([siswaId, status]) => {
+              const studentObj = this.students.find(s => s.id === siswaId);
+              const name = studentObj ? studentObj.nama : 'Unknown';
+              return ['absen_' + siswaId + '_' + todayStr, todayStr, siswaId, name, status];
+            });
+
+            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheetId}/values/Absensi!A2:E2:append?valueInputOption=USER_ENTERED`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ values: rows })
+            });
+
+            alert('Absensi hari ini berhasil disimpan ke Google Sheets!');
+          } catch(err) {
+            console.error(err);
+          } finally {
+            this.isLoading = false;
+          }
+        },
+
+        async addMateri() {
+          if (!this.newMateri.judul || !this.newMateri.url) return;
+          this.isLoading = true;
+          try {
+            const newId = 'materi_' + Date.now();
+            const todayStr = new Date().toLocaleDateString('id-ID');
+            const rowValues = [[newId, this.newMateri.judul, this.newMateri.deskripsi, this.newMateri.tipe, this.newMateri.url, todayStr]];
+
+            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheetId}/values/Materi!A2:F2:append?valueInputOption=USER_ENTERED`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ values: rowValues })
+            });
+
+            this.materials.push({ id: newId, judul: this.newMateri.judul, deskripsi: this.newMateri.deskripsi, tipe: this.newMateri.tipe, url: this.newMateri.url, tanggal: todayStr });
+            this.newMateri = { judul: '', deskripsi: '', tipe: 'Link', url: '' };
+            this.showAddMateriForm = false;
+          } catch(err) {
+            console.error(err);
+          } finally {
+            this.isLoading = false;
+            setTimeout(() => { if (window.lucide) { window.lucide.createIcons(); } }, 100);
+          }
+        },
+
+        async submitQuizScore() {
+          if (!this.studentQuizName) {
+            alert('Masukkan nama siswa pengerja!');
+            return;
+          }
+          this.isLoading = true;
+          try {
+            const newId = 'nilai_' + Date.now();
+            const todayStr = new Date().toLocaleString('id-ID');
+            const rowValues = [[newId, this.studentQuizName, 8, 4, '{}', todayStr]]; // Simulated standard quiz score
+
+            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheetId}/values/KuisNilai!A2:F2:append?valueInputOption=USER_ENTERED`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ values: rowValues })
+            });
+
+            this.grades.push({ id: newId, namaSiswa: this.studentQuizName, skorPilihanGanda: 8, skorPenjodohan: 4, jawabanEsai: '{}', tanggal: todayStr });
+            this.studentQuizName = '';
+            alert('Skor kuis berhasil disimpan ke Google Sheets!');
+          } catch(err) {
+            console.error(err);
+          } finally {
+            this.isLoading = false;
+          }
+        },
+
+        logout() {
+          firebase.auth().signOut().then(() => {
+            localStorage.removeItem('guru_token');
+            this.token = null;
+            this.isAuthenticated = false;
+            this.userInfo = { name: '', email: '' };
+          }).catch((err) => {
+            console.error("Signout failed:", err);
+          });
+        }
+      }
+    }
+  </script>
+</body>
+</html>
